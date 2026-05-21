@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cofre PAM — Gerenciador de Senhas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & tokens ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0c10;
+      --surface:   #111520;
+      --surface2:  #1a1f2e;
+      --border:    #252b3d;
+      --accent:    #4ade80;
+      --accent2:   #22d3ee;
+      --danger:    #f87171;
+      --warn:      #fbbf24;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --mono:      'Space Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+      --r:         10px;
+      --rr:        16px;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+    /* ── Auth screen ──────────────────────────────────────────── */
+    #auth-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 60% 30%, #0f2a1a 0%, var(--bg) 65%);
+    }
+
+    .auth-card {
+      width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--rr);
+      padding: 48px 40px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(74,222,128,.06);
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 8px;
+    }
+    .logo-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, #4ade80, #22d3ee);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .logo-text { font-family: var(--mono); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-sub  { font-size: 13px; color: var(--muted); margin-bottom: 36px; font-family: var(--mono); }
+
+    .kdf-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.25);
+      color: var(--accent); font-family: var(--mono); font-size: 11px;
+      padding: 4px 10px; border-radius: 20px; margin-bottom: 32px;
+    }
+    .kdf-badge::before { content: '●'; font-size: 8px; }
+
+    .tab-row {
+      display: flex; gap: 4px;
+      background: var(--surface2); border-radius: var(--r);
+      padding: 4px; margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px; border: none; border-radius: 8px;
+      font-family: var(--sans); font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+      background: transparent; color: var(--muted);
+    }
+    .tab-btn.active {
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    label { display: block; font-size: 12px; color: var(--muted); font-weight: 500;
+            text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .field { margin-bottom: 20px; }
+
+    input[type="text"], input[type="password"], input[type="url"],
+    textarea, select {
+      width: 100%;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--sans); font-size: 14px;
+      padding: 11px 14px; border-radius: var(--r);
+      outline: none; transition: border .2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(74,222,128,.12);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .btn {
+      width: 100%; padding: 13px;
+      border: none; border-radius: var(--r); cursor: pointer;
+      font-family: var(--sans); font-size: 15px; font-weight: 600;
+      transition: all .2s; position: relative; overflow: hidden;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4ade80, #22d3ee);
+      color: #0a0c10;
+    }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(74,222,128,.3); }
+    .btn-secondary {
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); }
+    .btn-danger { background: rgba(248,113,113,.15); color: var(--danger); border: 1px solid rgba(248,113,113,.3); }
+    .btn-danger:hover { background: rgba(248,113,113,.25); }
+    .btn-sm { width: auto; padding: 7px 14px; font-size: 13px; }
+
+    .err-msg { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
+    .err-msg.show { display: block; }
+
+    /* ── App layout ───────────────────────────────────────────── */
+    #app-screen { display: none; height: 100vh; overflow: hidden; }
+    #app-screen.visible { display: flex; }
+
+    .sidebar {
+      width: 280px; flex-shrink: 0;
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 20px 20px 0;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px;
+    }
+    .sidebar-logo .logo-icon { width: 32px; height: 32px; font-size: 15px; border-radius: 8px; }
+    .sidebar-logo span { font-family: var(--mono); font-weight: 700; font-size: 15px; }
+
+    .search-box {
+      position: relative; margin-bottom: 20px;
+    }
+    .search-box input {
+      padding-left: 38px; font-size: 13px;
+    }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 14px; pointer-events: none;
+    }
+
+    .sidebar-actions { padding: 0 20px 12px; }
+
+    #cred-list {
+      flex: 1; overflow-y: auto; padding: 0 8px 16px;
+    }
+    #cred-list::-webkit-scrollbar { width: 4px; }
+    #cred-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .cred-item {
+      padding: 13px 12px; border-radius: var(--r); cursor: pointer;
+      border: 1px solid transparent; transition: all .15s; margin-bottom: 4px;
+    }
+    .cred-item:hover { background: var(--surface2); border-color: var(--border); }
+    .cred-item.active { background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.3); }
+    .cred-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+    .cred-meta  { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+    .cat-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      font-size: 11px; padding: 2px 8px; border-radius: 20px; color: var(--muted);
+    }
+
+    .empty-state {
+      text-align: center; padding: 48px 20px; color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 8px;
+    }
+    .icon-btn {
+      padding: 8px 10px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); border-radius: 8px;
+      cursor: pointer; font-size: 14px; transition: all .2s;
+    }
+    .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Main panel ───────────────────────────────────────────── */
+    .main-panel {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+      background: var(--bg);
+    }
+    .main-panel::-webkit-scrollbar { width: 6px; }
+    .main-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .top-bar {
+      padding: 20px 32px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface);
+    }
+    .top-bar h1 { font-size: 18px; font-weight: 600; }
+    .top-actions { display: flex; gap: 10px; }
+
+    .panel-body { padding: 32px; }
+
+    /* ── Detail view ──────────────────────────────────────────── */
+    #detail-view .field-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    .detail-field {
+      margin-bottom: 20px;
+    }
+    .detail-label { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                    letter-spacing: .06em; margin-bottom: 6px; font-weight: 500; }
+    .detail-value {
+      font-size: 14px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: var(--r);
+      padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; word-break: break-all;
+    }
+    .detail-value a { color: var(--accent2); text-decoration: none; font-size: 13px; }
+    .detail-value a:hover { text-decoration: underline; }
+    .copy-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 13px; padding: 2px 6px; border-radius: 4px;
+      transition: color .2s; flex-shrink: 0;
+    }
+    .copy-btn:hover { color: var(--accent); }
+
+    .password-masked { font-family: var(--mono); letter-spacing: 3px; font-size: 16px; }
+    .eye-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 2px 6px; border-radius: 4px;
+      transition: color .2s; flex-shrink: 0; font-size: 14px;
+    }
+    .eye-btn:hover { color: var(--accent); }
+
+    /* ── Form ─────────────────────────────────────────────────── */
+    #form-view .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    .pw-input-wrap {
+      position: relative; display: flex; align-items: center; gap: 8px;
+    }
+    .pw-input-wrap input { padding-right: 80px; font-family: var(--mono); }
+    .pw-actions {
+      position: absolute; right: 10px;
+      display: flex; gap: 4px; align-items: center;
+    }
+    .pw-icon-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 14px; padding: 3px; transition: color .2s;
+    }
+    .pw-icon-btn:hover { color: var(--accent); }
+
+    .strength-bar {
+      height: 4px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden;
+    }
+    .strength-fill { height: 100%; border-radius: 2px; transition: all .3s; }
+    .strength-label { font-size: 12px; margin-top: 4px; }
+
+    /* ── Generator panel ──────────────────────────────────────── */
+    #gen-panel {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--rr); padding: 24px; margin-top: 8px;
+    }
+    #gen-panel h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+    .gen-result {
+      font-family: var(--mono); font-size: 15px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: var(--r);
+      padding: 12px 16px; margin-bottom: 16px; word-break: break-all;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    }
+    .gen-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .gen-option { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+    .gen-option input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+    .slider-row { margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+    .slider-row label { margin: 0; white-space: nowrap; min-width: 80px; }
+    input[type="range"] {
+      flex: 1; accent-color: var(--accent);
+      height: 4px; border-radius: 2px; background: var(--border); cursor: pointer;
+      border: none;
+    }
+    .slider-val { font-family: var(--mono); font-size: 13px; min-width: 28px; text-align: right; }
+
+    /* ── Dashboard ────────────────────────────────────────────── */
+    #dash-view .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--rr); padding: 24px;
+    }
+    .stat-card .stat-num { font-family: var(--mono); font-size: 36px; font-weight: 700; color: var(--accent); }
+    .stat-card .stat-lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .cat-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .cat-pill {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; font-size: 13px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .cat-pill strong { color: var(--accent); font-family: var(--mono); }
+
+    /* ── Settings panel ───────────────────────────────────────── */
+    #settings-view .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase;
+                                     letter-spacing: .06em; margin-bottom: 16px; font-weight: 500; }
+    .settings-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--rr); padding: 24px; margin-bottom: 20px;
+    }
+    .settings-block h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+
+    /* ── Notifications ────────────────────────────────────────── */
+    #notif-container {
+      position: fixed; top: 20px; right: 20px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+    }
+    .notif {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 12px 18px;
+      font-size: 14px; min-width: 220px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      animation: slideIn .25s ease;
+      pointer-events: all;
+    }
+    .notif.success { border-left: 3px solid var(--accent); }
+    .notif.error   { border-left: 3px solid var(--danger); }
+    .notif.info    { border-left: 3px solid var(--accent2); }
+
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Modal ────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--rr); padding: 32px; width: 400px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.6);
+    }
+    .modal h2 { font-size: 18px; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions .btn { width: auto; flex: 1; }
+
+    /* ── Misc ─────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+    .text-muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ AUTH SCREEN ═══════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="logo">
+      <div class="logo-icon">🔐</div>
+      <span class="logo-text">Cofre PAM</span>
+    </div>
+    <div class="logo-sub">Gerenciador de Senhas Seguro</div>
+    <div class="kdf-badge" id="kdf-badge">Carregando...</div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="showTab('login')">Entrar</button>
+      <button class="tab-btn" onclick="showTab('criar')">Criar Cofre</button>
+    </div>
+
+    <!-- Login -->
+    <div id="tab-login">
+      <div class="field">
+        <label>Senha Mestra</label>
+        <input type="password" id="login-senha" placeholder="Digite sua senha mestra" onkeydown="if(event.key==='Enter')doLogin()" />
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">Desbloquear Cofre</button>
+      <div class="err-msg" id="login-err"></div>
+    </div>
+
+    <!-- Criar -->
+    <div id="tab-criar" class="hidden">
+      <div class="field">
+        <label>Nova Senha Mestra</label>
+        <input type="password" id="criar-senha" placeholder="Mínimo 8 caracteres" oninput="avaliarSenhaMestra()" />
+        <div class="strength-bar"><div class="strength-fill" id="mestra-fill" style="width:0%"></div></div>
+        <div class="strength-label text-muted" id="mestra-nivel"></div>
+      </div>
+      <div class="field">
+        <label>Confirmar Senha</label>
+        <input type="password" id="criar-conf" placeholder="Repita a senha" onkeydown="if(event.key==='Enter')doCriar()" />
+      </div>
+      <button class="btn btn-primary" onclick="doCriar()">Criar Cofre</button>
+      <div class="err-msg" id="criar-err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ APP SCREEN ═══════════════════════ -->
+<div id="app-screen">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-icon">🔐</div>
+        <span>Cofre PAM</span>
+      </div>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Buscar credenciais..." oninput="buscar()" />
+      </div>
+    </div>
+    <div class="sidebar-actions">
+      <button class="btn btn-primary btn-sm" onclick="showForm(null)" style="width:100%">+ Nova Credencial</button>
+    </div>
+    <div id="cred-list">
+      <div class="empty-state">
+        <div class="empty-icon">🗄️</div>
+        <p>Nenhuma credencial ainda.<br>Clique em <strong>+ Nova Credencial</strong>.</p>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="icon-btn" title="Dashboard" onclick="showDash()">📊</button>
+      <button class="icon-btn" title="Gerador de Senhas" onclick="showGen()">⚡</button>
+      <button class="icon-btn" title="Configurações" onclick="showSettings()">⚙️</button>
+      <button class="icon-btn" title="Sair" onclick="doLogout()" style="margin-left:auto">🚪</button>
+    </div>
+  </aside>
+
+  <!-- Main panel -->
+  <main class="main-panel">
+
+    <!-- Welcome -->
+    <div id="welcome-view">
+      <div class="top-bar"><h1>Bem-vindo ao Cofre PAM</h1></div>
+      <div class="panel-body" style="text-align:center;padding-top:80px">
+        <div style="font-size:64px;margin-bottom:16px">🔐</div>
+        <h2 style="margin-bottom:8px">Selecione uma credencial</h2>
+        <p class="text-muted">Escolha na lista à esquerda ou crie uma nova.</p>
+      </div>
+    </div>
+
+    <!-- Detail -->
+    <div id="detail-view" class="hidden">
+      <div class="top-bar">
+        <h1 id="detail-titulo">—</h1>
+        <div class="top-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editarAtual()">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmarRemover()">🗑️ Remover</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="field-row">
+          <div class="detail-field">
+            <div class="detail-label">Usuário / E-mail</div>
+            <div class="detail-value"><span id="d-usuario">—</span><button class="copy-btn" onclick="copiar('d-usuario')" title="Copiar">📋</button></div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Senha</div>
+            <div class="detail-value">
+              <span id="d-senha" class="password-masked">••••••••</span>
+              <div style="display:flex;gap:4px">
+                <button class="eye-btn" id="eye-btn" onclick="toggleSenha()" title="Mostrar/ocultar">👁</button>
+                <button class="copy-btn" onclick="copiarSenha()" title="Copiar">📋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-field">
+          <div class="detail-label">URL / Site</div>
+          <div class="detail-value"><span id="d-url">—</span></div>
+        </div>
+        <div class="field-row">
+          <div class="detail-field">
+            <div class="detail-label">Categoria</div>
+            <div class="detail-value"><span id="d-categoria">—</span></div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Última atualização</div>
+            <div class="detail-value"><span id="d-data">—</span></div>
+          </div>
+        </div>
+        <div class="detail-field">
+          <div class="detail-label">Notas</div>
+          <div class="detail-value" style="display:block;white-space:pre-wrap"><span id="d-notas">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div id="form-view" class="hidden">
+      <div class="top-bar">
+        <h1 id="form-titulo">Nova Credencial</h1>
+        <div class="top-actions">
+          <button class="btn btn-secondary btn-sm" onclick="cancelarForm()">Cancelar</button>
+          <button class="btn btn-primary btn-sm" onclick="salvarForm()">💾 Salvar</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="form-row">
+          <div class="field">
+            <label>Título *</label>
+            <input type="text" id="f-titulo" placeholder="Ex: Gmail pessoal" />
+          </div>
+          <div class="field">
+            <label>Categoria</label>
+            <select id="f-categoria">
+              <option>Geral</option>
+              <option>E-mail</option>
+              <option>Redes Sociais</option>
+              <option>Banco / Finanças</option>
+              <option>Trabalho</option>
+              <option>Streaming</option>
+              <option>Compras</option>
+              <option>Outros</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Usuário / E-mail</label>
+            <input type="text" id="f-usuario" placeholder="usuario@email.com" />
+          </div>
+          <div class="field">
+            <label>URL / Site</label>
+            <input type="url" id="f-url" placeholder="https://exemplo.com" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Senha *</label>
+          <div class="pw-input-wrap">
+            <input type="password" id="f-senha" placeholder="Senha da conta" oninput="avaliarSenhaForm()" />
+            <div class="pw-actions">
+              <button class="pw-icon-btn" onclick="toggleFormPw()" title="Mostrar/ocultar">👁</button>
+              <button class="pw-icon-btn" onclick="gerarParaForm()" title="Gerar senha">⚡</button>
+            </div>
+          </div>
+          <div class="strength-bar"><div class="strength-fill" id="form-fill" style="width:0%"></div></div>
+          <div class="strength-label text-muted" id="form-nivel"></div>
+        </div>
+        <div class="field">
+          <label>Notas</label>
+          <textarea id="f-notas" placeholder="Informações adicionais..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generator -->
+    <div id="gen-view" class="hidden">
+      <div class="top-bar"><h1>⚡ Gerador de Senhas</h1></div>
+      <div class="panel-body">
+        <div id="gen-panel">
+          <h3>Configurações</h3>
+          <div class="slider-row">
+            <label>Comprimento</label>
+            <input type="range" id="gen-len" min="4" max="64" value="16" oninput="gerarSenha()" />
+            <span class="slider-val" id="gen-len-val">16</span>
+          </div>
+          <div class="gen-options">
+            <label class="gen-option"><input type="checkbox" id="gen-mai" checked onchange="gerarSenha()" />Maiúsculas (A-Z)</label>
+            <label class="gen-option"><input type="checkbox" id="gen-num" checked onchange="gerarSenha()" />Números (0-9)</label>
+            <label class="gen-option"><input type="checkbox" id="gen-sim" checked onchange="gerarSenha()" />Símbolos (!@#...)</label>
+          </div>
+          <div class="gen-result">
+            <span id="gen-output">—</span>
+            <button class="copy-btn" onclick="copiarGen()" style="font-size:16px">📋</button>
+          </div>
+          <div class="strength-bar"><div class="strength-fill" id="gen-fill"></div></div>
+          <div class="strength-label text-muted" id="gen-nivel"></div>
+          <div style="margin-top:16px">
+            <button class="btn btn-primary" onclick="gerarSenha()">🔄 Gerar nova senha</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dash-view" class="hidden">
+      <div class="top-bar"><h1>📊 Dashboard</h1></div>
+      <div class="panel-body">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-num" id="stat-total">0</div>
+            <div class="stat-lbl">Total de credenciais</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-cats">0</div>
+            <div class="stat-lbl">Categorias</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-kdf" style="font-size:14px;padding-top:10px">—</div>
+            <div class="stat-lbl">Algoritmo KDF ativo</div>
+          </div>
+        </div>
+        <div class="settings-block">
+          <h3>Distribuição por categoria</h3>
+          <div class="cat-list" id="cat-list"></div>
+        </div>
+        <div class="settings-block">
+          <h3>Informações de segurança</h3>
+          <p class="text-muted" style="line-height:1.7;font-size:14px">
+            🔐 Todas as senhas são cifradas individualmente com <strong>AES-256-GCM</strong>.<br>
+            🔑 A chave de cifragem é derivada da senha mestra via <strong>Argon2id</strong> (ou PBKDF2 como fallback).<br>
+            🧂 Um <strong>salt aleatório de 256 bits</strong> é gerado e armazenado junto ao cofre.<br>
+            ✅ A autenticação usa um <strong>hash de verificação separado</strong> — a chave nunca é armazenada.<br>
+            🛡️ Cada credencial usa um <strong>nonce único</strong> para garantir confidencialidade.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-view" class="hidden">
+      <div class="top-bar"><h1>⚙️ Configurações</h1></div>
+      <div class="panel-body">
+        <div class="settings-block">
+          <h3>🔑 Alterar Senha Mestra</h3>
+          <div class="field">
+            <label>Senha Atual</label>
+            <input type="password" id="s-atual" placeholder="Senha mestra atual" />
+          </div>
+          <div class="field">
+            <label>Nova Senha</label>
+            <input type="password" id="s-nova" placeholder="Nova senha mestra" oninput="avaliarSenhaNova()" />
+            <div class="strength-bar"><div class="strength-fill" id="nova-fill"></div></div>
+            <div class="strength-label text-muted" id="nova-nivel"></div>
+          </div>
+          <div class="field">
+            <label>Confirmar Nova Senha</label>
+            <input type="password" id="s-conf" placeholder="Repita a nova senha" />
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="alterarSenhaMestra()">Alterar Senha Mestra</button>
+          <div class="err-msg" id="s-err"></div>
+        </div>
+        <div class="settings-block">
+          <h3>ℹ️ Sobre o Cofre PAM</h3>
+          <p class="text-muted" style="font-size:14px;line-height:1.8">
+            <strong>Cofre de Senhas PAM</strong> — Trabalho de Conclusão de Curso<br>
+            Engenharia da Computação — Universidade de Sorocaba (UNISO), 2026.<br><br>
+            <em>Gabriel H. N. Oliveira · Felipe R. Bueno · João V. S. Coritar</em><br>
+            <em>Pedro H. C. Carvalho · Ruan Mota</em><br><br>
+            Orientador: Prof. Denicezar Angelo Baldo
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal de confirmação -->
+<div class="modal-overlay hidden" id="confirm-modal">
+  <div class="modal">
+    <h2>⚠️ Confirmar remoção</h2>
+    <p class="text-muted">Deseja remover permanentemente esta credencial? Esta ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-danger" onclick="removerAtual()">Remover</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notifications -->
+<div id="notif-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  Estado global
+// ═══════════════════════════════════════════════════════════════
+let credAtualId = null;
+let credAtualDados = null;
+let senhaVisivelDetail = false;
+
+// ═══════════════════════════════════════════════════════════════
+//  Init
+// ═══════════════════════════════════════════════════════════════
+async function init() {
+  const r = await api('GET', '/api/status');
+  document.getElementById('kdf-badge').textContent = r.kdf || 'AES-256-GCM';
+
+  if (r.autenticado) {
+    mostrarApp();
+  } else if (!r.cofre_existe) {
+    showTab('criar');
+  }
+  gerarSenha();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Auth
+// ═══════════════════════════════════════════════════════════════
+function showTab(t) {
+  document.getElementById('tab-login').classList.toggle('hidden', t !== 'login');
+  document.getElementById('tab-criar').classList.toggle('hidden', t !== 'criar');
+  document.querySelectorAll('.tab-btn').forEach((b, i) =>
+    b.classList.toggle('active', (i === 0 && t === 'login') || (i === 1 && t === 'criar'))
+  );
+}
+
+async function doLogin() {
+  const senha = document.getElementById('login-senha').value;
+  setErr('login-err', '');
+  const r = await api('POST', '/api/login', { senha_mestra: senha });
+  if (r.ok) { mostrarApp(); }
+  else { setErr('login-err', r.erro || 'Erro desconhecido'); }
+}
+
+async function doCriar() {
+  const senha = document.getElementById('criar-senha').value;
+  const conf  = document.getElementById('criar-conf').value;
+  setErr('criar-err', '');
+  if (senha.length < 8) return setErr('criar-err', 'Senha deve ter pelo menos 8 caracteres.');
+  if (senha !== conf)   return setErr('criar-err', 'As senhas não coincidem.');
+  const r = await api('POST', '/api/inicializar', { senha_mestra: senha });
+  if (r.ok) { notif('Cofre criado com sucesso!', 'success'); mostrarApp(); }
+  else { setErr('criar-err', r.erro || 'Erro ao criar cofre'); }
+}
+
+async function doLogout() {
+  await api('POST', '/api/logout');
+  location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  App
+// ═══════════════════════════════════════════════════════════════
+function mostrarApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').classList.add('visible');
+  carregarLista();
+  showDash();
+}
+
+async function carregarLista(termo = '') {
+  const url = termo ? `/api/credenciais?q=${encodeURIComponent(termo)}` : '/api/credenciais';
+  const lista = await api('GET', url);
+  renderLista(lista);
+}
+
+function renderLista(lista) {
+  const el = document.getElementById('cred-list');
+  if (!lista || lista.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🗄️</div><p>Nenhuma credencial encontrada.</p></div>`;
+    return;
+  }
+  el.innerHTML = lista.map(c => `
+    <div class="cred-item ${credAtualId === c.id ? 'active' : ''}" onclick="abrirCredencial('${c.id}')">
+      <div class="cred-title">${esc(c.titulo)}</div>
+      <div class="cred-meta">
+        <span class="cat-badge">${esc(c.categoria)}</span>
+        <span>${formatData(c.atualizado_em)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function abrirCredencial(id) {
+  credAtualId = id;
+  senhaVisivelDetail = false;
+  const c = await api('GET', `/api/credenciais/${id}`);
+  credAtualDados = c;
+
+  document.getElementById('detail-titulo').textContent = c.titulo;
+  document.getElementById('d-usuario').textContent = c.usuario || '—';
+  document.getElementById('d-senha').textContent = '••••••••';
+  document.getElementById('d-senha').className = 'password-masked';
+  document.getElementById('d-url').innerHTML = c.url
+    ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.url)}</a>` : '—';
+  document.getElementById('d-categoria').textContent = c.categoria || '—';
+  document.getElementById('d-notas').textContent = c.notas || '—';
+  document.getElementById('d-data').textContent = formatData(c.atualizado_em);
+
+  showView('detail-view');
+  carregarLista(document.getElementById('search-input').value);
+}
+
+function toggleSenha() {
+  senhaVisivelDetail = !senhaVisivelDetail;
+  const el = document.getElementById('d-senha');
+  if (senhaVisivelDetail) {
+    el.textContent = credAtualDados?.senha || '';
+    el.className = '';
+  } else {
+    el.textContent = '••••••••';
+    el.className = 'password-masked';
+  }
+}
+
+function copiar(id) {
+  const txt = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(txt).then(() => notif('Copiado!', 'success'));
+}
+function copiarSenha() {
+  navigator.clipboard.writeText(credAtualDados?.senha || '').then(() => notif('Senha copiada!', 'success'));
+}
+function copiarGen() {
+  const txt = document.getElementById('gen-output').textContent;
+  navigator.clipboard.writeText(txt).then(() => notif('Senha copiada!', 'success'));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Form
+// ═══════════════════════════════════════════════════════════════
+function showForm(id) {
+  credAtualId = id;
+  document.getElementById('form-titulo').textContent = id ? 'Editar Credencial' : 'Nova Credencial';
+  if (id && credAtualDados) {
+    const c = credAtualDados;
+    document.getElementById('f-titulo').value    = c.titulo    || '';
+    document.getElementById('f-usuario').value   = c.usuario   || '';
+    document.getElementById('f-senha').value     = c.senha     || '';
+    document.getElementById('f-url').value       = c.url       || '';
+    document.getElementById('f-notas').value     = c.notas     || '';
+    document.getElementById('f-categoria').value = c.categoria || 'Geral';
+    avaliarSenhaForm();
+  } else {
+    ['f-titulo','f-usuario','f-senha','f-url','f-notas'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('f-categoria').value = 'Geral';
+    document.getElementById('form-fill').style.width = '0%';
+    document.getElementById('form-nivel').textContent = '';
+  }
+  showView('form-view');
+}
+
+function editarAtual() { if (credAtualId) showForm(credAtualId); }
+function cancelarForm() { credAtualId ? abrirCredencial(credAtualId) : showView('welcome-view'); }
+
+async function salvarForm() {
+  const payload = {
+    titulo:    document.getElementById('f-titulo').value.trim(),
+    usuario:   document.getElementById('f-usuario').value.trim(),
+    senha:     document.getElementById('f-senha').value,
+    url:       document.getElementById('f-url').value.trim(),
+    notas:     document.getElementById('f-notas').value.trim(),
+    categoria: document.getElementById('f-categoria').value,
+  };
+  if (!payload.titulo) return notif('Título é obrigatório', 'error');
+  if (!payload.senha)  return notif('Senha é obrigatória', 'error');
+
+  let r;
+  if (credAtualId) {
+    r = await api('PUT', `/api/credenciais/${credAtualId}`, payload);
+  } else {
+    r = await api('POST', '/api/credenciais', payload);
+    if (r.id) credAtualId = r.id;
+  }
+  if (r.ok) {
+    notif('Credencial salva!', 'success');
+    await carregarLista();
+    if (credAtualId) abrirCredencial(credAtualId);
+  } else { notif(r.erro || 'Erro ao salvar', 'error'); }
+}
+
+function toggleFormPw() {
+  const i = document.getElementById('f-senha');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+async function gerarParaForm() {
+  const r = await api('GET', '/api/gerar-senha?comprimento=16&maiusculas=true&numeros=true&simbolos=true');
+  document.getElementById('f-senha').value = r.senha;
+  document.getElementById('f-senha').type = 'text';
+  atualizarForca('form-fill', 'form-nivel', r.forca);
+  notif('Senha gerada!', 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Generator
+// ═══════════════════════════════════════════════════════════════
+async function gerarSenha() {
+  const len = document.getElementById('gen-len')?.value || 16;
+  document.getElementById('gen-len-val').textContent = len;
+  const mai = document.getElementById('gen-mai').checked;
+  const num = document.getElementById('gen-num').checked;
+  const sim = document.getElementById('gen-sim').checked;
+  const r = await api('GET', `/api/gerar-senha?comprimento=${len}&maiusculas=${mai}&numeros=${num}&simbolos=${sim}`);
+  document.getElementById('gen-output').textContent = r.senha;
+  atualizarForca('gen-fill', 'gen-nivel', r.forca);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Dashboard
+// ═══════════════════════════════════════════════════════════════
+async function showDash() {
+  showView('dash-view');
+  const r = await api('GET', '/api/estatisticas');
+  document.getElementById('stat-total').textContent = r.total_credenciais ?? 0;
+  const cats = r.categorias || {};
+  document.getElementById('stat-cats').textContent  = Object.keys(cats).length;
+  const kdf = await api('GET', '/api/status');
+  document.getElementById('stat-kdf').textContent = kdf.kdf || 'AES-256-GCM';
+  document.getElementById('cat-list').innerHTML = Object.entries(cats)
+    .map(([k, v]) => `<div class="cat-pill">${esc(k)} <strong>${v}</strong></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Settings
+// ═══════════════════════════════════════════════════════════════
+function showSettings() { showView('settings-view'); }
+
+async function alterarSenhaMestra() {
+  const atual = document.getElementById('s-atual').value;
+  const nova  = document.getElementById('s-nova').value;
+  const conf  = document.getElementById('s-conf').value;
+  setErr('s-err', '');
+  if (nova.length < 8) return setErr('s-err', 'Nova senha deve ter pelo menos 8 caracteres.');
+  if (nova !== conf)   return setErr('s-err', 'As novas senhas não coincidem.');
+  const r = await api('POST', '/api/alterar-senha-mestra', { senha_atual: atual, senha_nova: nova });
+  if (r.ok) { notif('Senha mestra alterada!', 'success'); ['s-atual','s-nova','s-conf'].forEach(i => document.getElementById(i).value = ''); }
+  else { setErr('s-err', r.erro || 'Erro ao alterar'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Busca
+// ═══════════════════════════════════════════════════════════════
+let searchDebounce;
+function buscar() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => carregarLista(document.getElementById('search-input').value), 250);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Remoção
+// ═══════════════════════════════════════════════════════════════
+function confirmarRemover() { document.getElementById('confirm-modal').classList.remove('hidden'); }
+function fecharModal() { document.getElementById('confirm-modal').classList.add('hidden'); }
+
+async function removerAtual() {
+  fecharModal();
+  if (!credAtualId) return;
+  const r = await api('DELETE', `/api/credenciais/${credAtualId}`);
+  if (r.ok) {
+    notif('Credencial removida.', 'info');
+    credAtualId = null; credAtualDados = null;
+    carregarLista();
+    showView('welcome-view');
+  } else { notif(r.erro || 'Erro ao remover', 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Avaliação de força
+// ═══════════════════════════════════════════════════════════════
+async function avaliarSenhaMestra() {
+  const s = document.getElementById('criar-senha').value;
+  if (!s) return;
+  const r = await api('POST', '/api/avaliar-senha', { senha: s });
+  atualizarForca('mestra-fill', 'mestra-nivel', r);
+}
+async function avaliarSenhaForm() {
+  const s = document.getElementById('f-senha').value;
+  if (!s) return;
+  const r = await api('POST', '/api/avaliar-senha', { senha: s });
+  atualizarForca('form-fill', 'form-nivel', r);
+}
+async function avaliarSenhaNova() {
+  const s = document.getElementById('s-nova').value;
+  if (!s) return;
+  const r = await api('POST', '/api/avaliar-senha', { senha: s });
+  atualizarForca('nova-fill', 'nova-nivel', r);
+}
+
+function atualizarForca(fillId, labelId, forca) {
+  if (!forca) return;
+  const pct = Math.round((forca.pontos / forca.maximo) * 100);
+  document.getElementById(fillId).style.width  = pct + '%';
+  document.getElementById(fillId).style.background = forca.cor;
+  document.getElementById(labelId).textContent = `Força: ${forca.nivel}`;
+  document.getElementById(labelId).style.color  = forca.cor;
+}
+
+function showGen() { showView('gen-view'); gerarSenha(); }
+
+// ═══════════════════════════════════════════════════════════════
+//  Utils
+// ═══════════════════════════════════════════════════════════════
+function showView(id) {
+  ['welcome-view','detail-view','form-view','gen-view','dash-view','settings-view']
+    .forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+}
+
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch(path, opts);
+    return await r.json();
+  } catch (e) {
+    return { erro: 'Erro de conexão com o servidor' };
+  }
+}
+
+function setErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.toggle('show', !!msg);
+}
+
+function notif(msg, tipo = 'info') {
+  const c = document.getElementById('notif-container');
+  const el = document.createElement('div');
+  el.className = `notif ${tipo}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatData(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' }); }
+  catch { return iso; }
+}
+
+init();
+</script>
+</body>
+</html>
