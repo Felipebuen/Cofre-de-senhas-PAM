@@ -1,0 +1,14 @@
+# Ignorar a pasta de dados e o cofre de senhas
+data/
+vault.json
+*.tmp
+
+# Ignorar arquivos temporários do Python
+__pycache__/
+*.pyc
+
+
+# Ignorar ambientes virtuais (se você criar um no futuro)
+.venv/
+venv/
+env/

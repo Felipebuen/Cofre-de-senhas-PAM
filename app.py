@@ -4,6 +4,7 @@ API Flask que serve a interface e expõe endpoints REST.
 """
 
 import os
+import secrets
 from functools import wraps
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from backend.vault import (
     Cofre,
     CofreNaoInicializadoError,
     CredencialNaoEncontradaError,
+    PerfilExistenteError,
+    PerfilNaoEncontradoError,
     SenhaMestraIncorretaError,
 )
 
@@ -44,10 +47,17 @@ cofre = Cofre(str(VAULT_PATH))
 def requer_autenticado(f):
     @wraps(f)
     def decorado(*args, **kwargs):
-        if not session.get("autenticado") or not cofre.aberto:
+        perfil = session.get("perfil", "")
+        sessao_id = session.get("sessao_id", "")
+        if not session.get("autenticado") or not cofre.esta_aberto(perfil, sessao_id):
             return jsonify({"erro": "Não autenticado"}), 401
-        return f(*args, **kwargs)
+        with cofre.trava:
+            return f(*args, **kwargs)
     return decorado
+
+
+def contexto_sessao():
+    return session.get("perfil", "Principal"), session.get("sessao_id", "")
 
 
 # ------------------------------------------------------------------ #
@@ -65,44 +75,79 @@ def index():
 
 @app.route("/api/status", methods=["GET"])
 def status():
+    perfil, sessao_id = contexto_sessao()
     return jsonify({
         "cofre_existe": cofre.existe(),
-        "autenticado": bool(session.get("autenticado") and cofre.aberto),
+        "perfis": cofre.listar_perfis(),
+        "perfil_atual": perfil if session.get("autenticado") else None,
+        "autenticado": bool(session.get("autenticado") and cofre.esta_aberto(perfil, sessao_id)),
         "kdf": kdf_info(),
     })
 
 
 @app.route("/api/inicializar", methods=["POST"])
 def inicializar():
-    dados = request.get_json()
+    dados = request.get_json(silent=True) or {}
     senha = dados.get("senha_mestra", "")
+    perfil = dados.get("perfil", "Principal")
     if len(senha) < 8:
         return jsonify({"erro": "Senha mestra deve ter pelo menos 8 caracteres"}), 400
     try:
-        cofre.inicializar(senha)
+        sessao_id = secrets.token_urlsafe(24)
+        cofre.inicializar(senha, perfil, sessao_id)
         session["autenticado"] = True
+        session["perfil"] = perfil.strip()
+        session["sessao_id"] = sessao_id
         return jsonify({"ok": True, "mensagem": "Cofre criado com sucesso"})
     except FileExistsError as e:
         return jsonify({"erro": str(e)}), 409
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
 
 
 @app.route("/api/login", methods=["POST"])
 def login():
-    dados = request.get_json()
+    dados = request.get_json(silent=True) or {}
     senha = dados.get("senha_mestra", "")
+    perfil = dados.get("perfil", "Principal")
+    sessao_id = secrets.token_urlsafe(24)
     try:
-        cofre.abrir(senha)
+        cofre.abrir(senha, perfil, sessao_id)
         session["autenticado"] = True
+        session["perfil"] = perfil.strip()
+        session["sessao_id"] = sessao_id
         return jsonify({"ok": True})
     except CofreNaoInicializadoError as e:
         return jsonify({"erro": str(e)}), 404
+    except PerfilNaoEncontradoError as e:
+        return jsonify({"erro": str(e)}), 404
     except SenhaMestraIncorretaError:
         return jsonify({"erro": "Senha mestra incorreta"}), 401
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
+
+
+@app.route("/api/perfis", methods=["POST"])
+@requer_autenticado
+def criar_perfil():
+    dados = request.get_json(silent=True) or {}
+    nome = dados.get("perfil", "")
+    senha = dados.get("senha_mestra", "")
+    if len(senha) < 8:
+        return jsonify({"erro": "Senha mestra deve ter pelo menos 8 caracteres"}), 400
+    perfil_atual, sessao_id = contexto_sessao()
+    try:
+        cofre.criar_perfil(nome, senha, perfil_atual, sessao_id)
+        return jsonify({"ok": True, "perfis": cofre.listar_perfis()}), 201
+    except PerfilExistenteError as e:
+        return jsonify({"erro": str(e)}), 409
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
 
 
 @app.route("/api/logout", methods=["POST"])
 def logout():
-    cofre.fechar()
+    cofre.fechar(session.get("sessao_id"))
     session.clear()
     return jsonify({"ok": True})
 
@@ -114,18 +159,19 @@ def logout():
 @app.route("/api/credenciais", methods=["GET"])
 @requer_autenticado
 def listar():
+    perfil, sessao_id = contexto_sessao()
     termo = request.args.get("q", "").strip()
     if termo:
-        resultado = cofre.buscar_credenciais(termo)
+        resultado = cofre.buscar_credenciais(termo, perfil, sessao_id)
     else:
-        resultado = cofre.listar_credenciais()
+        resultado = cofre.listar_credenciais(perfil, sessao_id)
     return jsonify(resultado)
 
 
 @app.route("/api/credenciais", methods=["POST"])
 @requer_autenticado
 def adicionar():
-    dados = request.get_json()
+    dados = request.get_json(silent=True) or {}
     titulo = (dados.get("titulo") or "").strip()
     usuario = (dados.get("usuario") or "").strip()
     senha = dados.get("senha") or ""
@@ -135,6 +181,7 @@ def adicionar():
     if not senha:
         return jsonify({"erro": "Senha é obrigatória"}), 400
 
+    perfil, sessao_id = contexto_sessao()
     cred_id = cofre.adicionar_credencial(
         titulo=titulo,
         usuario=usuario,
@@ -142,6 +189,8 @@ def adicionar():
         url=dados.get("url", ""),
         notas=dados.get("notas", ""),
         categoria=dados.get("categoria", "Geral"),
+        perfil=perfil,
+        sessao_id=sessao_id,
     )
     return jsonify({"ok": True, "id": cred_id}), 201
 
@@ -149,8 +198,9 @@ def adicionar():
 @app.route("/api/credenciais/<cred_id>", methods=["GET"])
 @requer_autenticado
 def obter(cred_id):
+    perfil, sessao_id = contexto_sessao()
     try:
-        cred = cofre.obter_credencial(cred_id)
+        cred = cofre.obter_credencial(cred_id, perfil, sessao_id)
         return jsonify(cred)
     except CredencialNaoEncontradaError:
         return jsonify({"erro": "Credencial não encontrada"}), 404
@@ -159,7 +209,8 @@ def obter(cred_id):
 @app.route("/api/credenciais/<cred_id>", methods=["PUT"])
 @requer_autenticado
 def atualizar(cred_id):
-    dados = request.get_json()
+    dados = request.get_json(silent=True) or {}
+    perfil, sessao_id = contexto_sessao()
     try:
         cofre.atualizar_credencial(
             cred_id=cred_id,
@@ -169,6 +220,8 @@ def atualizar(cred_id):
             url=dados.get("url", ""),
             notas=dados.get("notas", ""),
             categoria=dados.get("categoria", "Geral"),
+            perfil=perfil,
+            sessao_id=sessao_id,
         )
         return jsonify({"ok": True})
     except CredencialNaoEncontradaError:
@@ -178,8 +231,9 @@ def atualizar(cred_id):
 @app.route("/api/credenciais/<cred_id>", methods=["DELETE"])
 @requer_autenticado
 def remover(cred_id):
+    perfil, sessao_id = contexto_sessao()
     try:
-        cofre.remover_credencial(cred_id)
+        cofre.remover_credencial(cred_id, perfil, sessao_id)
         return jsonify({"ok": True})
     except CredencialNaoEncontradaError:
         return jsonify({"erro": "Credencial não encontrada"}), 404
@@ -212,19 +266,21 @@ def api_avaliar_senha():
 @app.route("/api/estatisticas", methods=["GET"])
 @requer_autenticado
 def estatisticas():
-    return jsonify(cofre.estatisticas())
+    perfil, sessao_id = contexto_sessao()
+    return jsonify(cofre.estatisticas(perfil, sessao_id))
 
 
 @app.route("/api/alterar-senha-mestra", methods=["POST"])
 @requer_autenticado
 def alterar_senha_mestra():
-    dados = request.get_json()
+    dados = request.get_json(silent=True) or {}
     senha_atual = dados.get("senha_atual", "")
     senha_nova = dados.get("senha_nova", "")
     if len(senha_nova) < 8:
         return jsonify({"erro": "Nova senha deve ter pelo menos 8 caracteres"}), 400
+    perfil, sessao_id = contexto_sessao()
     try:
-        cofre.alterar_senha_mestra(senha_atual, senha_nova)
+        cofre.alterar_senha_mestra(senha_atual, senha_nova, perfil, sessao_id)
         return jsonify({"ok": True, "mensagem": "Senha mestra alterada com sucesso"})
     except SenhaMestraIncorretaError:
         return jsonify({"erro": "Senha atual incorreta"}), 401

@@ -354,6 +354,42 @@
     .hidden { display: none !important; }
     .divider { height: 1px; background: var(--border); margin: 20px 0; }
     .text-muted { color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 720px) {
+      #auth-screen { padding: 20px 14px; min-height: 100dvh; }
+      .auth-card { width: min(100%, 460px); padding: 32px 24px; }
+      #app-screen { height: auto; min-height: 100dvh; overflow: visible; flex-direction: column; }
+      .sidebar { width: 100%; max-height: 48dvh; border-right: 0; border-bottom: 1px solid var(--border); }
+      .sidebar-header { padding: 14px 16px 0; }
+      .sidebar-logo { margin-bottom: 12px; }
+      .sidebar-actions { padding: 0 16px 10px; }
+      #cred-list { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 0 12px 12px; min-height: 58px; }
+      .cred-item { min-width: 180px; max-width: 72vw; margin: 0; }
+      #cred-list .empty-state { min-width: 100%; padding: 12px 8px; }
+      #cred-list .empty-icon { display: none; }
+      .sidebar-footer { padding: 8px 12px; justify-content: space-between; }
+      .icon-btn { min-width: 42px; min-height: 42px; }
+      .main-panel { overflow: visible; min-height: 52dvh; }
+      .top-bar { padding: 14px 16px; gap: 10px; flex-wrap: wrap; }
+      .top-bar h1 { font-size: 17px; }
+      .top-actions { gap: 6px; }
+      .panel-body { padding: 20px 16px; }
+      #detail-view .field-row, #form-view .form-row { grid-template-columns: 1fr; gap: 0; }
+      #dash-view .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .stat-card { padding: 16px; }
+      .stat-card:last-child { grid-column: 1 / -1; }
+      .settings-block, #gen-panel { padding: 18px; }
+      .modal { width: calc(100% - 28px); padding: 24px; }
+    }
+
+    @media (max-width: 380px) {
+      .auth-card { padding: 28px 18px; }
+      .top-actions { width: 100%; }
+      .top-actions .btn { flex: 1; }
+      #dash-view .stat-grid { grid-template-columns: 1fr; }
+      .stat-card:last-child { grid-column: auto; }
+      .gen-options { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -370,13 +406,20 @@
 
     <div class="tab-row">
       <button class="tab-btn active" onclick="showTab('login')">Entrar</button>
-      <button class="tab-btn" onclick="showTab('criar')">Criar Cofre</button>
+      <button class="tab-btn" id="criar-tab-btn" onclick="showTab('criar')">Criar Cofre</button>
     </div>
+    <p class="text-muted hidden" id="existing-vault-help" style="margin:-16px 0 20px;line-height:1.5">
+      Para adicionar outro perfil, entre em um perfil existente e use Configurações.
+    </p>
 
     <!-- Login -->
     <div id="tab-login">
       <div class="field">
-        <label>Senha Mestra</label>
+        <label for="login-perfil">Perfil</label>
+        <select id="login-perfil"></select>
+      </div>
+      <div class="field">
+        <label for="login-senha">Senha Mestra</label>
         <input type="password" id="login-senha" placeholder="Digite sua senha mestra" onkeydown="if(event.key==='Enter')doLogin()" />
       </div>
       <button class="btn btn-primary" onclick="doLogin()">Desbloquear Cofre</button>
@@ -385,6 +428,10 @@
 
     <!-- Criar -->
     <div id="tab-criar" class="hidden">
+      <div class="field">
+        <label for="criar-perfil">Nome do perfil</label>
+        <input type="text" id="criar-perfil" maxlength="40" placeholder="Ex.: Felipe" />
+      </div>
       <div class="field">
         <label>Nova Senha Mestra</label>
         <input type="password" id="criar-senha" placeholder="Mínimo 8 caracteres" oninput="avaliarSenhaMestra()" />
@@ -411,6 +458,7 @@
         <div class="logo-icon">🔐</div>
         <span>Cofre PAM</span>
       </div>
+      <div class="text-muted" id="perfil-atual" style="margin:-12px 0 14px"></div>
       <div class="search-box">
         <span class="search-icon">🔍</span>
         <input type="text" id="search-input" placeholder="Buscar credenciais..." oninput="buscar()" />
@@ -620,6 +668,23 @@
       <div class="top-bar"><h1>⚙️ Configurações</h1></div>
       <div class="panel-body">
         <div class="settings-block">
+          <h3>👤 Criar perfil independente</h3>
+          <div class="field">
+            <label for="p-nome">Nome do perfil</label>
+            <input type="text" id="p-nome" maxlength="40" placeholder="Nome da pessoa" />
+          </div>
+          <div class="field">
+            <label for="p-senha">Senha mestra do perfil</label>
+            <input type="password" id="p-senha" placeholder="Mínimo 8 caracteres" />
+          </div>
+          <div class="field">
+            <label for="p-conf">Confirmar senha mestra</label>
+            <input type="password" id="p-conf" placeholder="Repita a senha" />
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="criarPerfil()">Criar perfil</button>
+          <div class="err-msg" id="p-err"></div>
+        </div>
+        <div class="settings-block">
           <h3>🔑 Alterar Senha Mestra</h3>
           <div class="field">
             <label>Senha Atual</label>
@@ -676,18 +741,24 @@
 let credAtualId = null;
 let credAtualDados = null;
 let senhaVisivelDetail = false;
+let cofreExiste = false;
 
 // ═══════════════════════════════════════════════════════════════
 //  Init
 // ═══════════════════════════════════════════════════════════════
 async function init() {
   const r = await api('GET', '/api/status');
+  cofreExiste = Boolean(r.cofre_existe);
   document.getElementById('kdf-badge').textContent = r.kdf || 'AES-256-GCM';
+  atualizarPerfis(r.perfis || [], r.perfil_atual);
 
   if (r.autenticado) {
     mostrarApp();
-  } else if (!r.cofre_existe) {
+  } else if (!cofreExiste) {
     showTab('criar');
+  } else {
+    document.getElementById('criar-tab-btn').classList.add('hidden');
+    document.getElementById('existing-vault-help').classList.remove('hidden');
   }
   gerarSenha();
 }
@@ -705,19 +776,25 @@ function showTab(t) {
 
 async function doLogin() {
   const senha = document.getElementById('login-senha').value;
+  const perfil = document.getElementById('login-perfil').value || 'Principal';
   setErr('login-err', '');
-  const r = await api('POST', '/api/login', { senha_mestra: senha });
+  const r = await api('POST', '/api/login', { perfil, senha_mestra: senha });
   if (r.ok) { mostrarApp(); }
   else { setErr('login-err', r.erro || 'Erro desconhecido'); }
 }
 
 async function doCriar() {
+  if (cofreExiste) {
+    showTab('login');
+    return setErr('login-err', 'Entre em um perfil existente para criar outro perfil em Configurações.');
+  }
+  const perfil = document.getElementById('criar-perfil').value.trim() || 'Principal';
   const senha = document.getElementById('criar-senha').value;
   const conf  = document.getElementById('criar-conf').value;
   setErr('criar-err', '');
   if (senha.length < 8) return setErr('criar-err', 'Senha deve ter pelo menos 8 caracteres.');
   if (senha !== conf)   return setErr('criar-err', 'As senhas não coincidem.');
-  const r = await api('POST', '/api/inicializar', { senha_mestra: senha });
+  const r = await api('POST', '/api/inicializar', { perfil, senha_mestra: senha });
   if (r.ok) { notif('Cofre criado com sucesso!', 'success'); mostrarApp(); }
   else { setErr('criar-err', r.erro || 'Erro ao criar cofre'); }
 }
@@ -733,6 +810,9 @@ async function doLogout() {
 function mostrarApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app-screen').classList.add('visible');
+  api('GET', '/api/status').then(r => {
+    document.getElementById('perfil-atual').textContent = r.perfil_atual ? `Perfil: ${r.perfil_atual}` : '';
+  });
   carregarLista();
   showDash();
 }
@@ -904,6 +984,20 @@ async function showDash() {
 // ═══════════════════════════════════════════════════════════════
 function showSettings() { showView('settings-view'); }
 
+async function criarPerfil() {
+  const perfil = document.getElementById('p-nome').value.trim();
+  const senha = document.getElementById('p-senha').value;
+  const confirmacao = document.getElementById('p-conf').value;
+  setErr('p-err', '');
+  if (!perfil) return setErr('p-err', 'Informe o nome do perfil.');
+  if (senha.length < 8) return setErr('p-err', 'Senha mestra deve ter pelo menos 8 caracteres.');
+  if (senha !== confirmacao) return setErr('p-err', 'As senhas não coincidem.');
+  const r = await api('POST', '/api/perfis', { perfil, senha_mestra: senha });
+  if (!r.ok) return setErr('p-err', r.erro || 'Erro ao criar perfil.');
+  ['p-nome', 'p-senha', 'p-conf'].forEach(id => document.getElementById(id).value = '');
+  notif('Perfil criado com chave independente.', 'success');
+}
+
 async function alterarSenhaMestra() {
   const atual = document.getElementById('s-atual').value;
   const nova  = document.getElementById('s-nova').value;
@@ -982,6 +1076,17 @@ function showGen() { showView('gen-view'); gerarSenha(); }
 function showView(id) {
   ['welcome-view','detail-view','form-view','gen-view','dash-view','settings-view']
     .forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+}
+
+function atualizarPerfis(perfis, perfilAtual) {
+  const select = document.getElementById('login-perfil');
+  select.replaceChildren(...perfis.map(nome => {
+    const option = document.createElement('option');
+    option.value = nome;
+    option.textContent = nome;
+    return option;
+  }));
+  if (perfilAtual) select.value = perfilAtual;
 }
 
 async function api(method, path, body) {
