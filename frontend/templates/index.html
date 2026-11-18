@@ -12,19 +12,40 @@
 
     :root {
       --bg:        #0a0c10;
-      --surface:   #111520;
-      --surface2:  #1a1f2e;
-      --border:    #252b3d;
-      --accent:    #4ade80;
-      --accent2:   #22d3ee;
+      --surface:   #131824;
+      --surface2:  #265275;
+      --border:    #34151B;
+      --accent:    #DA5E5E;
+      --accent2:   #e87c7c;
+      --accent-rgb: 218, 94, 94;
+      --auth-glow: #151a26;
+      --on-accent: #0a0c10;
       --danger:    #f87171;
       --warn:      #fbbf24;
-      --text:      #e2e8f0;
-      --muted:     #64748b;
+      --text:      #f1f5f9;
+      --muted:     #8fa0b5;
       --mono:      'Space Mono', monospace;
       --sans:      'DM Sans', sans-serif;
       --r:         10px;
       --rr:        16px;
+      color-scheme: dark;
+    }
+
+    :root[data-theme="light"] {
+      --bg:        #f3f6fb;
+      --surface:   #ffffff;
+      --surface2:  #e6eef8;
+      --border:    #cbd7e6;
+      --accent:    #123b63;
+      --accent2:   #1d5b91;
+      --accent-rgb: 18, 59, 99;
+      --auth-glow: #e9f0f8;
+      --on-accent: #ffffff;
+      --danger:    #b42332;
+      --warn:      #9a6700;
+      --text:      #172b42;
+      --muted:     #62748a;
+      color-scheme: light;
     }
 
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
@@ -33,7 +54,7 @@
     #auth-screen {
       display: flex; align-items: center; justify-content: center;
       min-height: 100vh;
-      background: radial-gradient(ellipse at 60% 30%, #0f2a1a 0%, var(--bg) 65%);
+      background: radial-gradient(ellipse at 60% 30%, var(--auth-glow) 0%, var(--bg) 65%);
     }
 
     .auth-card {
@@ -42,8 +63,10 @@
       border: 1px solid var(--border);
       border-radius: var(--rr);
       padding: 48px 40px;
-      box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(74,222,128,.06);
+      box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(var(--accent-rgb),.06);
     }
+
+    .auth-theme-toggle-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 
     .logo {
       display: flex; align-items: center; gap: 12px;
@@ -51,7 +74,7 @@
     }
     .logo-icon {
       width: 42px; height: 42px;
-      background: linear-gradient(135deg, #4ade80, #22d3ee);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       font-size: 20px;
@@ -61,7 +84,7 @@
 
     .kdf-badge {
       display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.25);
+      background: rgba(var(--accent-rgb),.1); border: 1px solid rgba(var(--accent-rgb),.25);
       color: var(--accent); font-family: var(--mono); font-size: 11px;
       padding: 4px 10px; border-radius: 20px; margin-bottom: 32px;
     }
@@ -69,8 +92,8 @@
 
     .tab-row {
       display: flex; gap: 4px;
-      background: var(--surface2); border-radius: var(--r);
-      padding: 4px; margin-bottom: 28px;
+      background: var(--bg); border-radius: var(--r);
+      padding: 4px; margin-bottom: 28px; border: 1px solid var(--border);
     }
     .tab-btn {
       flex: 1; padding: 9px; border: none; border-radius: 8px;
@@ -79,7 +102,7 @@
       background: transparent; color: var(--muted);
     }
     .tab-btn.active {
-      background: var(--surface); color: var(--text);
+      background: var(--surface2); color: var(--text);
       box-shadow: 0 2px 8px rgba(0,0,0,.3);
     }
 
@@ -90,14 +113,14 @@
     input[type="text"], input[type="password"], input[type="url"],
     textarea, select {
       width: 100%;
-      background: var(--surface2); border: 1px solid var(--border);
+      background: var(--bg); border: 1px solid var(--border);
       color: var(--text); font-family: var(--sans); font-size: 14px;
       padding: 11px 14px; border-radius: var(--r);
       outline: none; transition: border .2s;
     }
     input:focus, textarea:focus, select:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(74,222,128,.12);
+      box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.12);
     }
     textarea { resize: vertical; min-height: 80px; }
 
@@ -108,15 +131,15 @@
       transition: all .2s; position: relative; overflow: hidden;
     }
     .btn-primary {
-      background: linear-gradient(135deg, #4ade80, #22d3ee);
-      color: #0a0c10;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--on-accent);
     }
-    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(74,222,128,.3); }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(var(--accent-rgb),.3); }
     .btn-secondary {
-      background: var(--surface2); color: var(--text);
+      background: var(--bg); color: var(--text);
       border: 1px solid var(--border);
     }
-    .btn-secondary:hover { border-color: var(--accent); }
+    .btn-secondary:hover { border-color: var(--accent); background: var(--surface2); }
     .btn-danger { background: rgba(248,113,113,.15); color: var(--danger); border: 1px solid rgba(248,113,113,.3); }
     .btn-danger:hover { background: rgba(248,113,113,.25); }
     .btn-sm { width: auto; padding: 7px 14px; font-size: 13px; }
@@ -141,7 +164,7 @@
       display: flex; align-items: center; gap: 10px;
       margin-bottom: 20px;
     }
-    .sidebar-logo .logo-icon { width: 32px; height: 32px; font-size: 15px; border-radius: 8px; }
+    .sidebar-logo .logo-icon { width: 32px; height: 32px; font-size: 15px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--on-accent);}
     .sidebar-logo span { font-family: var(--mono); font-weight: 700; font-size: 15px; }
 
     .search-box {
@@ -167,12 +190,12 @@
       padding: 13px 12px; border-radius: var(--r); cursor: pointer;
       border: 1px solid transparent; transition: all .15s; margin-bottom: 4px;
     }
-    .cred-item:hover { background: var(--surface2); border-color: var(--border); }
-    .cred-item.active { background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.3); }
+    .cred-item:hover { background: var(--bg); border-color: var(--border); }
+    .cred-item.active { background: rgba(var(--accent-rgb),.08); border-color: rgba(var(--accent-rgb),.3); }
     .cred-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
     .cred-meta  { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
     .cat-badge {
-      background: var(--surface2); border: 1px solid var(--border);
+      background: var(--bg); border: 1px solid var(--border);
       font-size: 11px; padding: 2px 8px; border-radius: 20px; color: var(--muted);
     }
 
@@ -192,7 +215,8 @@
       background: transparent; color: var(--muted); border-radius: 8px;
       cursor: pointer; font-size: 14px; transition: all .2s;
     }
-    .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+    .icon-btn:hover { color: var(--text); border-color: var(--accent); background: var(--surface2); }
+    .theme-toggle { color: var(--text); }
 
     /* ── Main panel ───────────────────────────────────────────── */
     .main-panel {
@@ -222,7 +246,7 @@
     .detail-label { font-size: 11px; color: var(--muted); text-transform: uppercase;
                     letter-spacing: .06em; margin-bottom: 6px; font-weight: 500; }
     .detail-value {
-      font-size: 14px; background: var(--surface2);
+      font-size: 14px; background: var(--surface);
       border: 1px solid var(--border); border-radius: var(--r);
       padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
       gap: 8px; word-break: break-all;
@@ -269,7 +293,7 @@
 
     /* ── Generator panel ──────────────────────────────────────── */
     #gen-panel {
-      background: var(--surface2); border: 1px solid var(--border);
+      background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--rr); padding: 24px; margin-top: 8px;
     }
     #gen-panel h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
@@ -301,7 +325,7 @@
     .stat-card .stat-lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
     .cat-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .cat-pill {
-      background: var(--surface2); border: 1px solid var(--border);
+      background: var(--bg); border: 1px solid var(--border);
       border-radius: 20px; padding: 6px 14px; font-size: 13px;
       display: flex; align-items: center; gap: 6px;
     }
@@ -309,7 +333,7 @@
 
     /* ── Settings panel ───────────────────────────────────────── */
     #settings-view .section-title { font-size: 13px; color: var(--muted); text-transform: uppercase;
-                                     letter-spacing: .06em; margin-bottom: 16px; font-weight: 500; }
+                                    letter-spacing: .06em; margin-bottom: 16px; font-weight: 500; }
     .settings-block {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--rr); padding: 24px; margin-bottom: 20px;
@@ -337,7 +361,7 @@
 
     /* ── Modal ────────────────────────────────────────────────── */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      position: fixed; inset: 0; background: rgba(10, 12, 16, .8);
       display: flex; align-items: center; justify-content: center; z-index: 1000;
     }
     .modal-overlay.hidden { display: none; }
@@ -397,6 +421,9 @@
 <!-- ═══════════════════════ AUTH SCREEN ═══════════════════════ -->
 <div id="auth-screen">
   <div class="auth-card">
+    <div class="auth-theme-toggle-row">
+      <button class="icon-btn theme-toggle" type="button" data-theme-toggle onclick="alternarTema()" aria-label="Ativar modo claro" title="Ativar modo claro">☀️</button>
+    </div>
     <div class="logo">
       <div class="logo-icon">🔐</div>
       <span class="logo-text">Cofre PAM</span>
@@ -405,29 +432,27 @@
     <div class="kdf-badge" id="kdf-badge">Carregando...</div>
 
     <div class="tab-row">
-      <button class="tab-btn active" onclick="showTab('login')">Entrar</button>
-      <button class="tab-btn" id="criar-tab-btn" onclick="showTab('criar')">Criar Cofre</button>
+      <button class="tab-btn active" data-tab="login" onclick="showTab('login')">Entrar</button>
+      <button class="tab-btn" id="criar-tab-btn" data-tab="criar" onclick="showTab('criar')">Criar Cofre</button>
+      <button class="tab-btn hidden" id="criar-secundario-tab-btn" data-tab="criar-secundario" onclick="showTab('criar-secundario')">Novo perfil</button>
     </div>
-    <p class="text-muted hidden" id="existing-vault-help" style="margin:-16px 0 20px;line-height:1.5">
-      Para adicionar outro perfil, entre em um perfil existente e use Configurações.
-    </p>
 
     <!-- Login -->
-    <div id="tab-login">
+    <div id="tab-login" class="auth-tab-panel">
       <div class="field">
-        <label for="login-perfil">Perfil</label>
-        <select id="login-perfil"></select>
+        <label for="login-perfil">Nome do perfil</label>
+        <input type="text" id="login-perfil" maxlength="40" placeholder="Digite o nome do seu perfil" autocomplete="username" required onkeydown="if(event.key==='Enter')doLogin()" />
       </div>
       <div class="field">
         <label for="login-senha">Senha Mestra</label>
-        <input type="password" id="login-senha" placeholder="Digite sua senha mestra" onkeydown="if(event.key==='Enter')doLogin()" />
+        <input type="password" id="login-senha" placeholder="Digite sua senha mestra" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
       </div>
       <button class="btn btn-primary" onclick="doLogin()">Desbloquear Cofre</button>
       <div class="err-msg" id="login-err"></div>
     </div>
 
     <!-- Criar -->
-    <div id="tab-criar" class="hidden">
+    <div id="tab-criar" class="auth-tab-panel hidden">
       <div class="field">
         <label for="criar-perfil">Nome do perfil</label>
         <input type="text" id="criar-perfil" maxlength="40" placeholder="Ex.: Felipe" />
@@ -444,6 +469,35 @@
       </div>
       <button class="btn btn-primary" onclick="doCriar()">Criar Cofre</button>
       <div class="err-msg" id="criar-err"></div>
+    </div>
+
+    <!-- Criar perfil secundário -->
+    <div id="tab-criar-secundario" class="auth-tab-panel hidden">
+      <p class="text-muted" style="margin:-8px 0 20px;line-height:1.5">
+        Confirme a senha mestra do perfil principal para autorizar. O novo perfil terá sua própria senha mestra.
+      </p>
+      <div class="field">
+        <label for="sec-principal-perfil">Perfil principal</label>
+        <input type="text" id="sec-principal-perfil" readonly />
+      </div>
+      <div class="field">
+        <label for="sec-principal-senha">Senha mestra do perfil principal</label>
+        <input type="password" id="sec-principal-senha" placeholder="Senha mestra do perfil principal" autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label for="sec-perfil">Nome do novo perfil</label>
+        <input type="text" id="sec-perfil" maxlength="40" placeholder="Ex.: Família" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="sec-senha">Senha mestra do novo perfil</label>
+        <input type="password" id="sec-senha" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label for="sec-conf">Confirmar senha mestra do novo perfil</label>
+        <input type="password" id="sec-conf" placeholder="Repita a senha" autocomplete="new-password" onkeydown="if(event.key==='Enter')doCriarPerfilSecundario()" />
+      </div>
+      <button class="btn btn-primary" onclick="doCriarPerfilSecundario()">Criar perfil secundário</button>
+      <div class="err-msg" id="secundario-err"></div>
     </div>
   </div>
 </div>
@@ -477,6 +531,7 @@
       <button class="icon-btn" title="Dashboard" onclick="showDash()">📊</button>
       <button class="icon-btn" title="Gerador de Senhas" onclick="showGen()">⚡</button>
       <button class="icon-btn" title="Configurações" onclick="showSettings()">⚙️</button>
+      <button class="icon-btn theme-toggle" type="button" data-theme-toggle onclick="alternarTema()" aria-label="Ativar modo claro" title="Ativar modo claro">☀️</button>
       <button class="icon-btn" title="Sair" onclick="doLogout()" style="margin-left:auto">🚪</button>
     </div>
   </aside>
@@ -706,7 +761,7 @@
         <div class="settings-block">
           <h3>ℹ️ Sobre o Cofre PAM</h3>
           <p class="text-muted" style="font-size:14px;line-height:1.8">
-            <strong>Cofre de Senhas PAM</strong> — Trabalho de Conclusão de Curso<br>
+            <strong>Cofre de Senhas PAM</strong> <br>
             Engenharia da Computação — Universidade de Sorocaba (UNISO), 2026.<br><br>
             <em>Gabriel H. N. Oliveira · Felipe B. Ribeiro</em><br>
           </p>
@@ -741,6 +796,24 @@ let credAtualDados = null;
 let senhaVisivelDetail = false;
 let cofreExiste = false;
 
+function aplicarTema(tema) {
+  const temaAtual = tema === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = temaAtual;
+  const proximoTema = temaAtual === 'light' ? 'escuro' : 'claro';
+  const icone = temaAtual === 'light' ? '🌙' : '☀️';
+  document.querySelectorAll('[data-theme-toggle]').forEach(botao => {
+    botao.textContent = icone;
+    botao.setAttribute('aria-label', `Ativar modo ${proximoTema}`);
+    botao.title = `Ativar modo ${proximoTema}`;
+  });
+}
+
+function alternarTema() {
+  const tema = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  aplicarTema(tema);
+  localStorage.setItem('pam-theme', tema);
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Init
 // ═══════════════════════════════════════════════════════════════
@@ -748,7 +821,7 @@ async function init() {
   const r = await api('GET', '/api/status');
   cofreExiste = Boolean(r.cofre_existe);
   document.getElementById('kdf-badge').textContent = r.kdf || 'AES-256-GCM';
-  atualizarPerfis(r.perfis || [], r.perfil_atual);
+  document.getElementById('sec-principal-perfil').value = r.perfil_principal || '';
 
   if (r.autenticado) {
     mostrarApp();
@@ -756,7 +829,7 @@ async function init() {
     showTab('criar');
   } else {
     document.getElementById('criar-tab-btn').classList.add('hidden');
-    document.getElementById('existing-vault-help').classList.remove('hidden');
+    document.getElementById('criar-secundario-tab-btn').classList.remove('hidden');
   }
   gerarSenha();
 }
@@ -765,20 +838,58 @@ async function init() {
 //  Auth
 // ═══════════════════════════════════════════════════════════════
 function showTab(t) {
-  document.getElementById('tab-login').classList.toggle('hidden', t !== 'login');
-  document.getElementById('tab-criar').classList.toggle('hidden', t !== 'criar');
-  document.querySelectorAll('.tab-btn').forEach((b, i) =>
-    b.classList.toggle('active', (i === 0 && t === 'login') || (i === 1 && t === 'criar'))
+  const paineis = {
+    login: 'tab-login',
+    criar: 'tab-criar',
+    'criar-secundario': 'tab-criar-secundario',
+  };
+  document.querySelectorAll('.auth-tab-panel').forEach(painel =>
+    painel.classList.toggle('hidden', painel.id !== paineis[t])
+  );
+  document.querySelectorAll('.tab-btn').forEach(botao =>
+    botao.classList.toggle('active', botao.dataset.tab === t)
   );
 }
 
 async function doLogin() {
   const senha = document.getElementById('login-senha').value;
-  const perfil = document.getElementById('login-perfil').value || 'Principal';
+  const perfil = document.getElementById('login-perfil').value.trim();
   setErr('login-err', '');
+  if (!perfil) return setErr('login-err', 'Informe o nome do perfil.');
+  if (!senha) return setErr('login-err', 'Informe a senha mestra.');
   const r = await api('POST', '/api/login', { perfil, senha_mestra: senha });
   if (r.ok) { mostrarApp(); }
   else { setErr('login-err', r.erro || 'Erro desconhecido'); }
+}
+
+async function doCriarPerfilSecundario() {
+  const perfilPrincipal = document.getElementById('sec-principal-perfil').value;
+  const senhaPrincipal = document.getElementById('sec-principal-senha').value;
+  const perfil = document.getElementById('sec-perfil').value.trim();
+  const senha = document.getElementById('sec-senha').value;
+  const confirmacao = document.getElementById('sec-conf').value;
+  setErr('secundario-err', '');
+  if (!senhaPrincipal) return setErr('secundario-err', 'Informe a senha mestra do perfil principal.');
+  if (!perfil) return setErr('secundario-err', 'Informe o nome do novo perfil.');
+  if (senha.length < 8) return setErr('secundario-err', 'Senha mestra deve ter pelo menos 8 caracteres.');
+  if (senha !== confirmacao) return setErr('secundario-err', 'As senhas do novo perfil não coincidem.');
+
+  const r = await api('POST', '/api/perfis/registrar', {
+    perfil_principal: perfilPrincipal,
+    senha_principal: senhaPrincipal,
+    perfil,
+    senha_mestra: senha,
+  });
+  document.getElementById('sec-principal-senha').value = '';
+  if (!r.ok) return setErr('secundario-err', r.erro || 'Erro ao criar perfil.');
+
+  document.getElementById('login-perfil').value = perfil;
+  document.getElementById('login-senha').value = '';
+  ['sec-perfil', 'sec-senha', 'sec-conf'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  showTab('login');
+  notif('Perfil secundário criado. Entre com o nome e a senha desse perfil.', 'success');
 }
 
 async function doCriar() {
@@ -1076,17 +1187,6 @@ function showView(id) {
     .forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
 }
 
-function atualizarPerfis(perfis, perfilAtual) {
-  const select = document.getElementById('login-perfil');
-  select.replaceChildren(...perfis.map(nome => {
-    const option = document.createElement('option');
-    option.value = nome;
-    option.textContent = nome;
-    return option;
-  }));
-  if (perfilAtual) select.value = perfilAtual;
-}
-
 async function api(method, path, body) {
   const opts = {
     method,
@@ -1126,7 +1226,10 @@ function formatData(iso) {
   catch { return iso; }
 }
 
+aplicarTema(localStorage.getItem('pam-theme') === 'light' ? 'light' : 'dark');
 init();
 </script>
 </body>
 </html>
+
+```

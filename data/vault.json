@@ -7,7 +7,32 @@
       "salt": "ySpmZMzLj+WQbJHRTxR8wK4grcTZvYvTMwFcUQToQX8=",
       "verificador": "806c4b0da286d0d5e574dbaefe87746bf51fa55454d0c7a26caf406c9e187abf",
       "criado_em": "2026-05-21T16:25:49.216380+00:00",
+      "credenciais": [
+        {
+          "id": "e8e58bbb-d9de-4703-a967-85b0d9fa8dfe",
+          "titulo_visivel": "instagram",
+          "categoria": "Redes Sociais",
+          "criado_em": "2026-11-05T22:10:01.019172+00:00",
+          "atualizado_em": "2026-11-05T22:10:21.518521+00:00",
+          "nonce": "RXSBrHfiju4CSQJV",
+          "ciphertext": "VZ+nri8EPU0KqRFhKvXWw3tZdPOF0Xe6yrhMCP/dASjrlJGPyDnDOLRMsMJibiuSUxeYoa43RvrzJ+ooH97wQgfnvWS8vK7jWhIUUOminM3aaCRr+HNZSE4IQOUZcnfXBJCASNUJ3PKmiSyfKY0EzcKa35himjAPRHbQ6jL8AOYCjgCocG+iFZF6+cDzlPKUF2GCp31rzD4="
+        }
+      ]
+    },
+    "teste": {
+      "nome": "Teste",
+      "salt": "fnaEEdhfJMq3BYaJM4pAgBnStfI+jiBklWqwURWFX18=",
+      "verificador": "adaa68d5c812369759cbf7cbd0a2e9a43ad35a901b8efd63af9a5544fa5a5e47",
+      "criado_em": "2026-11-05T22:10:59.609610+00:00",
+      "credenciais": []
+    },
+    "gabriel": {
+      "nome": "Gabriel",
+      "salt": "9tBAsZnO0pjj/iGjDruRmhjD6r023EdOLygUzBZp+ws=",
+      "verificador": "60358934194bff6085d24347a99539b57e392d8b41ba47d45dc4d805fb1476b7",
+      "criado_em": "2026-11-18T14:21:55.314670+00:00",
       "credenciais": []
     }
-  }
+  },
+  "perfil_principal": "principal"
 }

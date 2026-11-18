@@ -79,6 +79,7 @@ def status():
     return jsonify({
         "cofre_existe": cofre.existe(),
         "perfis": cofre.listar_perfis(),
+        "perfil_principal": cofre.perfil_principal(),
         "perfil_atual": perfil if session.get("autenticado") else None,
         "autenticado": bool(session.get("autenticado") and cofre.esta_aberto(perfil, sessao_id)),
         "kdf": kdf_info(),
@@ -109,7 +110,11 @@ def inicializar():
 def login():
     dados = request.get_json(silent=True) or {}
     senha = dados.get("senha_mestra", "")
-    perfil = dados.get("perfil", "Principal")
+    perfil = dados.get("perfil", "")
+    if not isinstance(perfil, str) or not perfil.strip():
+        return jsonify({"erro": "Nome do perfil é obrigatório"}), 400
+    if not isinstance(senha, str):
+        return jsonify({"erro": "Senha mestra inválida"}), 400
     sessao_id = secrets.token_urlsafe(24)
     try:
         cofre.abrir(senha, perfil, sessao_id)
@@ -123,6 +128,36 @@ def login():
         return jsonify({"erro": str(e)}), 404
     except SenhaMestraIncorretaError:
         return jsonify({"erro": "Senha mestra incorreta"}), 401
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
+
+
+@app.route("/api/perfis/registrar", methods=["POST"])
+def registrar_perfil():
+    dados = request.get_json(silent=True) or {}
+    perfil_principal = dados.get("perfil_principal", "")
+    senha_principal = dados.get("senha_principal", "")
+    nome = dados.get("perfil", "")
+    senha = dados.get("senha_mestra", "")
+    if not all(isinstance(valor, str) for valor in (
+        perfil_principal, senha_principal, nome, senha
+    )):
+        return jsonify({"erro": "Preencha os dados do perfil principal e do novo perfil"}), 400
+    if len(senha) < 8:
+        return jsonify({"erro": "Senha mestra deve ter pelo menos 8 caracteres"}), 400
+    try:
+        cofre.criar_perfil_com_senha_principal(
+            nome, senha, perfil_principal, senha_principal
+        )
+        return jsonify({"ok": True, "perfis": cofre.listar_perfis()}), 201
+    except CofreNaoInicializadoError as e:
+        return jsonify({"erro": str(e)}), 404
+    except PerfilNaoEncontradoError as e:
+        return jsonify({"erro": str(e)}), 404
+    except SenhaMestraIncorretaError:
+        return jsonify({"erro": "Senha mestra do perfil principal incorreta"}), 401
+    except PerfilExistenteError as e:
+        return jsonify({"erro": str(e)}), 409
     except ValueError as e:
         return jsonify({"erro": str(e)}), 400
 

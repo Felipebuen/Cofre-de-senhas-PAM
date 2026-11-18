@@ -73,6 +73,7 @@ class Cofre:
         estrutura = {
             "versao": "2.0",
             "criado_em": _agora(),
+            "perfil_principal": chave_perfil,
             "perfis": {chave_perfil: registro},
         }
         self.caminho_vault.parent.mkdir(parents=True, exist_ok=True)
@@ -112,6 +113,54 @@ class Cofre:
         salt = gerar_salt()
         self._dados["perfis"][chave_perfil] = self._novo_perfil(nome, senha_mestra, salt)
         self._salvar_raw(self._dados)
+
+    def criar_perfil_com_senha_principal(
+        self, nome: str, senha_mestra: str, perfil_principal: str, senha_principal: str
+    ) -> None:
+        """Cria um perfil isolado após validar a senha do perfil principal."""
+        with self.trava:
+            if not self.caminho_vault.exists():
+                raise CofreNaoInicializadoError("Nenhum cofre encontrado.")
+            dados = self._carregar_raw()
+            if "perfis" not in dados:
+                dados = self._migrar_legado(dados)
+
+            perfis = dados["perfis"]
+            chave_principal = dados.get("perfil_principal") or next(iter(perfis), None)
+            registro_principal = perfis.get(chave_principal)
+            nome_principal, chave_informada = self._validar_nome_perfil(perfil_principal)
+            if (
+                registro_principal is None
+                or chave_informada != chave_principal
+                or nome_principal.casefold() != registro_principal["nome"].casefold()
+            ):
+                raise PerfilNaoEncontradoError("Perfil principal não encontrado.")
+
+            salt_principal = _b64d(registro_principal["salt"])
+            verificador = hash_senha_mestra(senha_principal, salt_principal)
+            if not secrets.compare_digest(verificador, registro_principal["verificador"]):
+                raise SenhaMestraIncorretaError("Senha mestra incorreta.")
+
+            nome, chave_perfil = self._validar_nome_perfil(nome)
+            if chave_perfil in perfis:
+                raise PerfilExistenteError("Já existe um perfil com esse nome.")
+
+            salt = gerar_salt()
+            perfis[chave_perfil] = self._novo_perfil(nome, senha_mestra, salt)
+            dados["perfil_principal"] = chave_principal
+            self._salvar_raw(dados)
+            self._dados = dados
+
+    def perfil_principal(self) -> Optional[str]:
+        if not self.caminho_vault.exists():
+            return None
+        dados = self._carregar_raw()
+        if "perfis" not in dados:
+            return "Principal"
+        perfis = dados["perfis"]
+        chave_principal = dados.get("perfil_principal") or next(iter(perfis), None)
+        registro = perfis.get(chave_principal)
+        return registro["nome"] if registro else None
 
     def listar_perfis(self) -> list[str]:
         if not self.caminho_vault.exists():
@@ -377,6 +426,7 @@ class Cofre:
         return {
             "versao": "2.0",
             "criado_em": dados.get("criado_em", _agora()),
+            "perfil_principal": "principal",
             "perfis": {
                 "principal": {
                     "nome": "Principal",
